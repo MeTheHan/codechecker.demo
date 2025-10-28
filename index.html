@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Basit Kod Kontrolcü</title>
+    <style>
+        body { font-family: Arial; max-width: 800px; margin: 0 auto; padding: 20px; }
+        textarea { width: 100%; height: 200px; margin: 10px 0; }
+        button { padding: 10px 20px; background: #007acc; color: white; border: none; cursor: pointer; }
+        .error { color: red; margin: 5px 0; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>🧐 Basit Kod Kontrolcü</h1>
+    
+    <textarea id="codeInput" placeholder="JavaScript kodunuzu buraya yapıştırın..."></textarea>
+    <br>
+    <button onclick="checkCode()">Kodu Kontrol Et</button>
+    
+    <div id="result"></div>
+
+    <script>
+        function checkCode() {
+            const code = document.getElementById('codeInput').value;
+            const resultDiv = document.getElementById('result');
+            
+            // Basit hata kontrolleri
+            const errors = [];
+            
+            // 1. Parantez kontrolü
+            const openParen = (code.match(/\(/g) || []).length;
+            const closeParen = (code.match(/\)/g) || []).length;
+            if (openParen !== closeParen) {
+                errors.push('❌ Parantez hatası: Açık ve kapalı parantez sayıları eşit değil');
+            }
+            
+            // 2. Süslü parantez kontrolü
+            const openBrace = (code.match(/\{/g) || []).length;
+            const closeBrace = (code.match(/\}/g) || []).length;
+            if (openBrace !== closeBrace) {
+                errors.push('❌ Süslü parantez hatası: Açık ve kapalı süslü parantez sayıları eşit değil');
+            }
+            
+            // 3. Noktalı virgül kontrolü (basit)
+            const lines = code.split('\n');
+            lines.forEach((line, index) => {
+                const trimmedLine = line.trim();
+                if (trimmedLine && !trimmedLine.endsWith(';') && 
+                    !trimmedLine.endsWith('{') && !trimmedLine.endsWith('}') &&
+                    !trimmedLine.includes('if') && !trimmedLine.includes('function') &&
+                    !trimmedLine.includes('//')) {
+                    errors.push(`⚠️ Satır ${index + 1}: Noktalı virgül eksik olabilir`);
+                }
+            });
+            
+            // 4. console.log kontrolü
+            if (code.includes('console.log') && !code.includes('console.log(')) {
+                errors.push('❌ console.log parantezleri eksik');
+            }
+            
+            // Sonuçları göster
+            if (errors.length === 0) {
+                resultDiv.innerHTML = '<div class="success">✅ Tebrikler! Temel hata bulunamadı</div>';
+            } else {
+                resultDiv.innerHTML = '<h3>Bulunan Hatalar:</h3>' + 
+                    errors.map(error => `<div class="error">${error}</div>`).join('');
+            }
+        }
+    </script>
+</body>
+</html>
