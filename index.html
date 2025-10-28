@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Çoklu Dil Kod Kontrolcü</title>
+    <style>
+        body { font-family: Arial; max-width: 900px; margin: 0 auto; padding: 20px; }
+        .container { display: flex; gap: 20px; }
+        .editor-section, .result-section { flex: 1; }
+        textarea { width: 100%; height: 250px; margin: 10px 0; font-family: monospace; }
+        select, button { padding: 10px; margin: 5px 0; width: 100%; }
+        button { background: #007acc; color: white; border: none; cursor: pointer; }
+        .error { color: red; margin: 5px 0; padding: 8px; background: #ffe6e6; }
+        .warning { color: orange; margin: 5px 0; padding: 8px; background: #fff4e6; }
+        .success { color: green; margin: 5px 0; padding: 8px; background: #e6ffe6; }
+        .info { color: blue; margin: 5px 0; padding: 8px; background: #e6f7ff; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Çoklu Dil Kod Kontrolcü</h1>
+    
+    <select id="languageSelect" onchange="changeLanguage()">
+        <option value="javascript">JavaScript</option>
+        <option value="html">HTML</option>
+        <option value="css">CSS</option>
+    </select>
+    
+    <div class="container">
+        <div class="editor-section">
+            <textarea id="codeInput" placeholder="Kodunuzu buraya yapıştırın..."></textarea>
+            <button onclick="checkCode()">Kodu Kontrol Et</button>
+        </div>
+        
+        <div class="result-section">
+            <h3>Sonuçlar:</h3>
+            <div id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentLanguage = 'javascript';
+        
+        function changeLanguage() {
+            currentLanguage = document.getElementById('languageSelect').value;
+            const placeholder = {
+                javascript: 'JavaScript kodunuzu buraya yapıştırın...',
+                html: 'HTML kodunuzu buraya yapıştırın...',
+                css: 'CSS kodunuzu buraya yapıştırın...'
+            }[currentLanguage];
+            
+            document.getElementById('codeInput').placeholder = placeholder;
+            document.getElementById('result').innerHTML = '';
+        }
+
+        function checkCode() {
+            const code = document.getElementById('codeInput').value;
+            const resultDiv = document.getElementById('result');
+            
+            let errors = [];
+            let warnings = [];
+            let infos = [];
+
+            if (currentLanguage === 'javascript') {
+                checkJavaScript(code, errors, warnings, infos);
+            } else if (currentLanguage === 'html') {
+                checkHTML(code, errors, warnings, infos);
+            } else if (currentLanguage === 'css') {
+                checkCSS(code, errors, warnings, infos);
+            }
+
+            // Sonuçları göster
+            displayResults(resultDiv, errors, warnings, infos);
+        }
+
+        function checkJavaScript(code, errors, warnings, infos) {
+            // Parantez kontrolü
+            const openParen = (code.match(/\(/g) || []).length;
+            const closeParen = (code.match(/\)/g) || []).length;
+            if (openParen !== closeParen) {
+                errors.push('Parantez hatası: Açık ve kapalı parantez sayıları eşit değil');
+            }
+
+            // Süslü parantez kontrolü
+            const openBrace = (code.match(/\{/g) || []).length;
+            const closeBrace = (code.match(/\}/g) || []).length;
+            if (openBrace !== closeBrace) {
+                errors.push('Süslü parantez hatası: Açık ve kapalı süslü parantez sayıları eşit değil');
+            }
+
+            // Köşeli parantez kontrolü
+            const openBracket = (code.match(/\[/g) || []).length;
+            const closeBracket = (code.match(/\]/g) || []).length;
+            if (openBracket !== closeBracket) {
+                errors.push('Köşeli parantez hatası: Açık ve kapalı köşeli parantez sayıları eşit değil');
+            }
+
+            // Noktalı virgül kontrolü
+            const lines = code.split('\n');
+            lines.forEach((line, index) => {
+                const trimmedLine = line.trim();
+                if (trimmedLine && !trimmedLine.endsWith(';') && 
+                    !trimmedLine.endsWith('{') && !trimmedLine.endsWith('}') &&
+                    !trimmedLine.includes('if') && !trimmedLine.includes('function') &&
+                    !trimmedLine.includes('for') && !trimmedLine.includes('while') &&
+                    !trimmedLine.startsWith('//') && !trimmedLine.startsWith('/*')) {
+                    warnings.push(`Satır ${index + 1}: Noktalı virgül eksik olabilir - "${trimmedLine}"`);
+                }
+            });
+
+            // console.log kontrolü
+            if (code.includes('console.log') && !code.includes('console.log(')) {
+                errors.push('console.log parantezleri eksik');
+            }
+        }
+
+        function checkHTML(code, errors, warnings, infos) {
+            // Çok daha basit ve güvenilir bir yaklaşım
+            const selfClosingTags = ['!doctype', 'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
+            
+            // Tag'leri bul (sadece normal tag'ler)
+            const tags = code.match(/<(\/?)([a-z][a-z0-9]*)(?:\s[^>]*)?>/gi) || [];
+            const stack = [];
+            
+            let openCount = 0;
+            let closeCount = 0;
+
+            tags.forEach(tag => {
+                const tagMatch = tag.match(/<(\/?)([a-z][a-z0-9]*)/i);
+                if (!tagMatch) return;
+                
+                const isClosing = tagMatch[1] === '/';
+                const tagName = tagMatch[2].toLowerCase();
+                
+                // Self-closing tagleri ve DOCTYPE'i tamamen yoksay
+                if (selfClosingTags.includes(tagName)) {
+                    return;
+                }
+                
+                if (isClosing) {
+                    closeCount++;
+                    // Stack kontrolü
+                    if (stack.length === 0) {
+                        errors.push(`Fazladan kapalı tag: </${tagName}>`);
+                    } else if (stack[stack.length - 1] !== tagName) {
+                        errors.push(`Tag sıralaması hatası: </${tagName}> beklenirken </${stack[stack.length - 1]}> bulundu`);
+                    } else {
+                        stack.pop();
+                    }
+                } else {
+                    openCount++;
+                    stack.push(tagName);
+                }
+            });
+
+            // Sadece gerçek hata durumlarında uyarı ver
+            if (openCount !== closeCount) {
+                if (stack.length > 0) {
+                    errors.push(`Açık kalan tagler var: ${stack.join(', ')}`);
+                } else {
+                    warnings.push(`Küçük tag dengesizliği: ${openCount} açık, ${closeCount} kapalı`);
+                }
+            }
+
+            // img tag kontrolü
+            const imgTags = code.match(/<img[^>]*>/gi) || [];
+            imgTags.forEach((imgTag, index) => {
+                if (!imgTag.includes('alt=')) {
+                    warnings.push(`img tag'inde alt attribute eksik`);
+                }
+            });
+
+            // link tag kontrolü
+            const linkTags = code.match(/<link[^>]*>/gi) || [];
+            linkTags.forEach((linkTag, index) => {
+                if (!linkTag.includes('rel=')) {
+                    warnings.push(`link tag'inde rel attribute eksik`);
+                }
+            });
+
+            // DOCTYPE kontrolü (sadece tam HTML sayfaları için)
+            const hasHtmlTag = code.includes('<html');
+            const hasDoctype = code.trim().toLowerCase().replace(/<!--.*?-->/gs, '').trim().startsWith('<!doctype html>');
+            if (hasHtmlTag && !hasDoctype) {
+                infos.push('DOCTYPE declaration eksik olabilir');
+            }
+        }
+
+        function checkCSS(code, errors, warnings, infos) {
+            // Süslü parantez kontrolü
+            const openBrace = (code.match(/\{/g) || []).length;
+            const closeBrace = (code.match(/\}/g) || []).length;
+            if (openBrace !== closeBrace) {
+                errors.push('CSS süslü parantez hatası: Açık ve kapalı süslü parantez sayıları eşit değil');
+            }
+
+            // Noktalı virgül kontrolü
+            const lines = code.split('\n');
+            lines.forEach((line, index) => {
+                const trimmedLine = line.trim();
+                if (trimmedLine && !trimmedLine.endsWith(';') && 
+                    !trimmedLine.endsWith('{') && !trimmedLine.endsWith('}') &&
+                    !trimmedLine.startsWith('/*') && !trimmedLine.endsWith('*/') &&
+                    !trimmedLine.includes('@import') && !trimmedLine.includes('@media') &&
+                    !trimmedLine.startsWith('//')) {
+                    warnings.push(`Satır ${index + 1}: Noktalı virgül eksik olabilir - "${trimmedLine}"`);
+                }
+            });
+
+            // Kapanmamış yorum kontrolü
+            const commentStart = (code.match(/\/\*/g) || []).length;
+            const commentEnd = (code.match(/\*\//g) || []).length;
+            if (commentStart !== commentEnd) {
+                errors.push('Kapanmamış CSS yorumu var');
+            }
+
+            // Geçersiz selector kontrolü (basit)
+            if (code.includes('@import') && !code.includes('url(')) {
+                warnings.push('@import ifadesinde url() eksik olabilir');
+            }
+        }
+
+        function displayResults(resultDiv, errors, warnings, infos) {
+            let html = '';
+            
+            if (errors.length === 0 && warnings.length === 0) {
+                html += '<div class="success">✅ Tebrikler! Temel hata bulunamadı</div>';
+            }
+            
+            if (errors.length > 0) {
+                html += '<h4>🔴 Hatalar:</h4>';
+                html += errors.map(error => `<div class="error">${error}</div>`).join('');
+            }
+            
+            if (warnings.length > 0) {
+                html += '<h4>🟡 Uyarılar:</h4>';
+                html += warnings.map(warning => `<div class="warning">${warning}</div>`).join('');
+            }
+            
+            if (infos.length > 0) {
+                html += '<h4>🔵 Bilgiler:</h4>';
+                html += infos.map(info => `<div class="info">${info}</div>`).join('');
+            }
+            
+            resultDiv.innerHTML = html;
+        }
+
+        // Sayfa yüklendiğinde örnek kod göster
+        window.onload = function() {
+            const exampleCode = `<!DOCTYPE html>
+<html>
+<head>
+    <title>Örnek Sayfa</title>
+</head>
+<body>
+    <div>
+        <h1>Merhaba Dünya</h1>
+        <p>Bu bir örnek paragraf</p>
+        <img src="resim.jpg" alt="Açıklama">
+    </div>
+</body>
+</html>`;
+            document.getElementById('codeInput').value = exampleCode;
+        };
+    </script>
+</body>
+</html>
